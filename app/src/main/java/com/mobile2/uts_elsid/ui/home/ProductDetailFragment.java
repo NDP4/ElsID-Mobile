@@ -24,8 +24,10 @@ import com.mobile2.uts_elsid.api.ApiClient;
 import com.mobile2.uts_elsid.api.ApiService;
 import com.mobile2.uts_elsid.api.ProductDetailResponse;
 import com.mobile2.uts_elsid.databinding.FragmentProductDetailBinding;
+import com.mobile2.uts_elsid.model.Cart;
 import com.mobile2.uts_elsid.model.Product;
 import com.mobile2.uts_elsid.model.ProductVariant;
+import com.mobile2.uts_elsid.utils.CartManager;
 
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -43,6 +45,7 @@ public class ProductDetailFragment extends Fragment {
 //    private static final String BASE_URL = "https://mobile2.ndp.my.id/";
 
     private FragmentProductDetailBinding binding;
+    private CartManager cartManager;
     private Product product;
     private int productId;
     private ProductVariant selectedVariant;
@@ -202,21 +205,7 @@ public class ProductDetailFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         binding = FragmentProductDetailBinding.inflate(inflater, container, false);
-
-        binding.addToCartButton.setOnClickListener(v -> {
-            if (product != null) {
-                // Show success message
-                Toasty.success(requireContext(),
-                        "Added " + product.getTitle() + " to cart",
-                        Toasty.LENGTH_SHORT).show();
-
-                // TODO: Implement actual cart functionality
-                // For now just navigate to checkout
-                NavController navController = Navigation.findNavController(requireActivity(),
-                        R.id.nav_host_fragment_activity_home);
-                navController.navigate(R.id.navigation_checkout);
-            }
-        });
+        cartManager = new CartManager(requireContext());
 
         // Get product ID from arguments
         if (getArguments() != null) {
@@ -226,8 +215,15 @@ public class ProductDetailFragment extends Fragment {
             }
         }
 
+        // Set click listener untuk add to cart
+        binding.addToCartButton.setOnClickListener(v -> {
+            addToCart();
+        });
+
         return binding.getRoot();
     }
+
+
 
     private void loadProductDetails(int productId) {
         showLoading();
@@ -465,4 +461,61 @@ public class ProductDetailFragment extends Fragment {
             binding.errorText.setText(message);
         }
     }
+
+    private void addToCart() {
+        if (product == null) return;
+
+        // Get selected variant if exists
+        ProductVariant selectedVariant = null;
+        if (binding.variantsGroup.getCheckedRadioButtonId() != -1) {
+            RadioButton selectedButton = binding.variantsGroup.findViewById(binding.variantsGroup.getCheckedRadioButtonId());
+            selectedVariant = (ProductVariant) selectedButton.getTag();
+        }
+
+        // Get price, stock and discount info based on selection
+        double price;
+        int stock;
+        String variantName = "";
+        double discount;
+
+        if (selectedVariant != null) {
+            // Use variant details
+            price = selectedVariant.getPrice();
+            stock = selectedVariant.getStock();
+            variantName = selectedVariant.getName();
+            discount = selectedVariant.getDiscount();
+        } else {
+            // Use main product details
+            price = product.getPrice();
+            stock = product.getMainStock();
+            discount = product.getDiscount();
+        }
+
+        // Get first image URL
+        String imageUrl = product.getImages() != null && !product.getImages().isEmpty()
+                ? product.getImages().get(0)
+                : "";
+
+        // Create cart item with original price and discount
+        Cart cartItem = new Cart(
+                product.getId(),
+                product.getTitle(),
+                imageUrl,
+                price,    // Pass original price, not final price
+                1,       // Initial quantity
+                stock,
+                variantName,
+                discount  // Pass discount percentage
+        );
+
+        // Add to cart using CartManager
+        cartManager.addToCart(cartItem);
+
+        // Show success message
+        Toasty.success(requireContext(),
+                "Added " + product.getTitle() + " to cart",
+                Toast.LENGTH_SHORT).show();
+    }
+
+
 }

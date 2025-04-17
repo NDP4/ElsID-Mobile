@@ -16,6 +16,8 @@ public class CartManager {
     private final SharedPreferences pref;
     private final Gson gson;
 
+    private SharedPreferences sharedPreferences;
+
     public CartManager(Context context) {
         pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         gson = new Gson();
@@ -41,10 +43,16 @@ public class CartManager {
         List<Cart> cart = getCart();
         boolean itemExists = false;
 
+        // Calculate final price with discount
+        double finalPrice = newItem.getPrice();
+
         for (Cart item : cart) {
-            if (item.getProductId() == newItem.getProductId()) {
+            // Check if same product and variant exists
+            if (item.getProductId() == newItem.getProductId() &&
+                    item.getVariantName().equals(newItem.getVariantName())) {
+
                 // Check if adding quantity exceeds stock
-                int newQuantity = item.getQuantity() + newItem.getQuantity();
+                int newQuantity = item.getQuantity() + 1;
                 if (newQuantity <= item.getStock()) {
                     item.setQuantity(newQuantity);
                 }
@@ -54,6 +62,8 @@ public class CartManager {
         }
 
         if (!itemExists) {
+            // Set final discounted price before adding
+            newItem.setPrice(finalPrice);
             cart.add(newItem);
         }
 
