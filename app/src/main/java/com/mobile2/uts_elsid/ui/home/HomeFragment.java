@@ -1,0 +1,424 @@
+package com.mobile2.uts_elsid.ui.home;
+
+import android.app.ActivityManager;
+import android.content.Context;
+import android.content.pm.ConfigurationInfo;
+import android.graphics.drawable.Drawable;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.widget.SearchView;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.annotation.NonNull;
+import androidx.fragment.app.Fragment;
+import androidx.navigation.NavController;
+import androidx.navigation.NavOptions;
+import androidx.navigation.Navigation;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.viewpager2.widget.ViewPager2;
+
+import android.graphics.drawable.Drawable;
+import androidx.annotation.Nullable;
+import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.load.resource.bitmap.CircleCrop;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.GlideException;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.imageview.ShapeableImageView;
+import com.google.android.material.tabs.TabLayoutMediator;
+import com.mobile2.uts_elsid.R;
+import com.mobile2.uts_elsid.adapter.BannerAdapter;
+import com.mobile2.uts_elsid.adapter.ProductAdapter;
+import com.mobile2.uts_elsid.adapter.SearchSuggestionsAdapter;
+import com.mobile2.uts_elsid.api.ApiClient;
+import com.mobile2.uts_elsid.api.ApiService;
+import com.mobile2.uts_elsid.api.BannerResponse;
+import com.mobile2.uts_elsid.api.LoginResponse;
+import com.mobile2.uts_elsid.api.ProductResponse;
+import com.mobile2.uts_elsid.databinding.FragmentHomeBinding;
+import com.mobile2.uts_elsid.model.Product;
+import com.mobile2.uts_elsid.utils.SessionManager;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import es.dmoral.toasty.Toasty;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+public class HomeFragment extends Fragment {
+
+    private FragmentHomeBinding binding;
+    private BannerAdapter bannerAdapter;
+    private ProductAdapter productAdapter;
+    private List<Product> productList = new ArrayList<>();
+    private static final long SLIDE_DELAY = 3000; // 3 seconds
+    private final Handler sliderHandler = new Handler(Looper.getMainLooper());
+    private String baseUrl = "https://mobile2.ndp.my.id/";
+
+    private final Runnable sliderRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (binding != null && bannerAdapter != null && bannerAdapter.getItemCount() > 0) {
+                int currentItem = binding.bannerViewPager.getCurrentItem();
+                int nextItem = (currentItem + 1) % bannerAdapter.getItemCount();
+                binding.bannerViewPager.setCurrentItem(nextItem);
+                sliderHandler.postDelayed(this, SLIDE_DELAY);
+            }
+        }
+    };
+
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        binding = FragmentHomeBinding.inflate(inflater, container, false);
+        return binding.getRoot();
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        // Get user data from SessionManager
+        SessionManager sessionManager = new SessionManager(requireContext());
+        LoginResponse userData = sessionManager.getUserData();
+
+        // In HomeFragment.java onViewCreated method, replace the avatar loading code with:
+        if (userData != null && userData.getUser() != null) {
+            TextView userNameText = binding.userNameText;
+            userNameText.setText(userData.getUser().getFullname());
+
+            // Add cart button click listener
+            binding.cartButton.setOnClickListener(v -> {
+                NavController navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment_activity_home);
+                navController.navigate(R.id.navigation_checkout, null, new NavOptions.Builder()
+                        .setPopUpTo(R.id.navigation_home, true)  // true to remove home from back stack
+                        .setLaunchSingleTop(true)
+                        .build());
+            });
+        }
+
+        initViews();
+        setupSearchView();
+        loadData();
+
+        binding.swipeRefresh.setOnRefreshListener(this::loadData);
+    }
+
+    private void initViews() {
+        // Initialize banner
+        bannerAdapter = new BannerAdapter(requireContext());
+        binding.bannerViewPager.setAdapter(bannerAdapter);
+
+        // Reduce sensitivity for manual scrolling
+        binding.bannerViewPager.setOffscreenPageLimit(3);
+        binding.bannerViewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
+            @Override
+            public void onPageSelected(int position) {
+                super.onPageSelected(position);
+                sliderHandler.removeCallbacks(sliderRunnable);
+                sliderHandler.postDelayed(sliderRunnable, SLIDE_DELAY);
+            }
+        });
+
+        // Setup TabLayout with ViewPager2
+        new TabLayoutMediator(binding.bannerIndicator, binding.bannerViewPager,
+                (tab, position) -> {
+                    // No text needed for indicators
+                }).attach();
+
+        // Initialize products
+        productAdapter = new ProductAdapter(requireContext(), productList);
+        binding.productsRecyclerView.setLayoutManager(new GridLayoutManager(requireContext(), 2));
+        binding.productsRecyclerView.setAdapter(productAdapter);
+        binding.productsRecyclerView.setHasFixedSize(true); // Add this
+        binding.productsRecyclerView.setNestedScrollingEnabled(false); // Add this
+        binding.productsRecyclerView.setAdapter(productAdapter);
+        productAdapter.setOnProductClickListener(product -> {
+            // Add debug logging
+            Log.d("HomeFragment", "Clicked product: " +
+                    "\nID: " + product.getId() +
+                    "\nTitle: " + product.getTitle());
+
+            Bundle bundle = new Bundle();
+            bundle.putInt("product_id", product.getId());
+
+            // Log the bundle content
+            Log.d("HomeFragment", "Bundle product_id: " + bundle.getInt("product_id"));
+
+            NavOptions navOptions = new NavOptions.Builder()
+                    .setLaunchSingleTop(true)
+                    .setPopUpTo(R.id.navigation_home, true)  // false to preserve home in back stack
+                    .build();
+            Navigation.findNavController(requireView())
+                    .navigate(R.id.navigation_product_detail, bundle, navOptions);
+        });
+    }
+
+    // Add this inside HomeFragment.java class, after initViews() method
+//    private void setupSearchView() {
+//        SearchView searchView = binding.searchView;
+//        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+//            @Override
+//            public boolean onQueryTextSubmit(String query) {
+//                searchProducts(query);
+//                return true;
+//            }
+//
+//            @Override
+//            public boolean onQueryTextChange(String newText) {
+//                searchProducts(newText);
+//                return true;
+//            }
+//        });
+//    }
+    private void setupSearchView() {
+        SearchView searchView = binding.searchView;
+        RecyclerView suggestionsList = binding.searchSuggestionsList;
+        SearchSuggestionsAdapter suggestionsAdapter = new SearchSuggestionsAdapter(requireContext()); // Pass context
+
+        suggestionsList.setLayoutManager(new LinearLayoutManager(requireContext()));
+        suggestionsList.setAdapter(suggestionsAdapter);
+
+        suggestionsAdapter.setOnSuggestionClickListener(product -> {
+            searchView.setQuery(product.getTitle(), false);
+            suggestionsList.setVisibility(View.GONE);
+            Bundle bundle = new Bundle();
+            bundle.putInt("product_id", product.getId());
+            NavOptions navOptions = new NavOptions.Builder()
+                    .setLaunchSingleTop(true)
+                    .setPopUpTo(R.id.navigation_home, true)
+                    .build();
+            Navigation.findNavController(requireView())
+                    .navigate(R.id.navigation_product_detail, bundle, navOptions);
+        });
+
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                searchProducts(query);
+                binding.searchSuggestionsList.setVisibility(View.GONE);
+                return true;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                if (newText.isEmpty()) {
+                    binding.searchSuggestionsList.setVisibility(View.GONE);
+                } else {
+                    updateSearchSuggestions(newText, suggestionsAdapter);
+                    binding.searchSuggestionsList.setVisibility(View.VISIBLE);
+                }
+                return true;
+            }
+        });
+
+        // Hide suggestions when search view loses focus
+        searchView.setOnQueryTextFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                binding.searchSuggestionsList.setVisibility(View.GONE);
+            }
+        });
+    }
+
+    private void updateSearchSuggestions(String query, SearchSuggestionsAdapter adapter) {
+        if (productList == null) return;
+
+        String lowercaseQuery = query.toLowerCase().trim();
+        List<Product> suggestions = new ArrayList<>();
+
+        for (Product product : productList) {
+            if (product.getTitle().toLowerCase().contains(lowercaseQuery) ||
+                    product.getCategory().toLowerCase().contains(lowercaseQuery)) {
+                suggestions.add(product);
+                // Removed the limit check
+            }
+        }
+
+        adapter.updateSuggestions(suggestions);
+    }
+
+    private void searchProducts(String query) {
+        if (productList == null) return;
+
+        if (query.isEmpty()) {
+            // If search query is empty, show all products
+            productAdapter.updateData(productList);
+            return;
+        }
+
+        // Filter products based on search query
+        List<Product> filteredList = new ArrayList<>();
+        String lowercaseQuery = query.toLowerCase().trim();
+
+        for (Product product : productList) {
+            // Search in title and category
+            if (product.getTitle().toLowerCase().contains(lowercaseQuery) ||
+                    product.getCategory().toLowerCase().contains(lowercaseQuery)) {
+                filteredList.add(product);
+            }
+        }
+
+        productAdapter.updateData(filteredList);
+
+        // Show message if no results found
+        if (filteredList.isEmpty()) {
+            Toasty.info(requireContext(), "No products found", Toasty.LENGTH_SHORT).show();
+        }
+    }
+
+    private void loadData() {
+        loadBanners();
+        loadProducts();
+    }
+
+    private void loadBanners() {
+        ApiService apiService = ApiClient.getClient().create(ApiService.class);
+        Call<BannerResponse> call = apiService.getBanners();
+
+        call.enqueue(new Callback<BannerResponse>() {
+            @Override
+            public void onResponse(@NonNull Call<BannerResponse> call, @NonNull Response<BannerResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    BannerResponse bannerResponse = response.body();
+                    if (bannerResponse.getStatus() == 1 && bannerResponse.getBanners() != null) {
+                        List<String> bannerUrls = new ArrayList<>();
+                        for (BannerResponse.Banner banner : bannerResponse.getBanners()) {
+                            if (banner.getImages() != null) {
+                                bannerUrls.addAll(banner.getImages());
+                            }
+                        }
+                        bannerAdapter.setImageUrls(bannerUrls);
+
+                        // Start auto-sliding if there are banners
+                        if (!bannerUrls.isEmpty()) {
+                            sliderHandler.postDelayed(sliderRunnable, SLIDE_DELAY);
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<BannerResponse> call, @NonNull Throwable t) {
+                Toasty.error(requireContext(), "Failed to load banners: " + t.getMessage(), Toasty.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void loadProducts() {
+        ApiService apiService = ApiClient.getClient().create(ApiService.class);
+        Call<ProductResponse> call = apiService.getProducts();
+
+        call.enqueue(new Callback<ProductResponse>() {
+            @Override
+            public void onResponse(@NonNull Call<ProductResponse> call, @NonNull Response<ProductResponse> response) {
+                binding.swipeRefresh.setRefreshing(false);
+                if (response.isSuccessful() && response.body() != null) {
+                    productList = response.body().getProducts();
+                    productAdapter.updateData(productList);
+                    updateCategories(productList);
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<ProductResponse> call, @NonNull Throwable t) {
+                binding.swipeRefresh.setRefreshing(false);
+                Toasty.error(requireContext(), "Error loading products: " + t.getMessage(),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void updateCategories(List<Product> products) {
+        Set<String> categories = new HashSet<>();
+        for (Product product : products) {
+            categories.add(product.getCategory());
+        }
+
+        binding.categoryChipGroup.removeAllViews();
+
+        // Add "All" category
+        Chip allChip = new Chip(requireContext());
+        allChip.setText("All");
+        allChip.setCheckable(true);
+        allChip.setChecked(true);
+        binding.categoryChipGroup.addView(allChip);
+
+        // Add other categories
+        for (String category : categories) {
+            Chip chip = new Chip(requireContext());
+            chip.setText(category);
+            chip.setCheckable(true);
+            binding.categoryChipGroup.addView(chip);
+        }
+
+        // Handle category selection
+        binding.categoryChipGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            Chip selectedChip = group.findViewById(checkedId);
+            filterProducts(selectedChip != null ? selectedChip.getText().toString() : "All");
+        });
+    }
+
+    private void filterProducts(String category) {
+        if (category.equals("All")) {
+            productAdapter.updateData(productList);
+            return;
+        }
+
+        List<Product> filteredList = new ArrayList<>();
+        for (Product product : productList) {
+            if (product.getCategory().equals(category)) {
+                filteredList.add(product);
+            }
+        }
+        productAdapter.updateData(filteredList);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (bannerAdapter != null && bannerAdapter.getItemCount() > 0) {
+            sliderHandler.postDelayed(sliderRunnable, SLIDE_DELAY);
+        }
+    }
+    @Override
+    public void onPause() {
+        super.onPause();
+        sliderHandler.removeCallbacks(sliderRunnable);
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        sliderHandler.removeCallbacks(sliderRunnable);
+        binding = null;
+    }
+
+    private void setupImageLoading() {
+        if (!supportsHardwareAcceleration()) {
+            // Use software rendering if hardware acceleration isn't supported
+            getActivity().getWindow().setFlags(
+                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+        }
+    }
+
+    private boolean supportsHardwareAcceleration() {
+        ActivityManager activityManager = (ActivityManager) requireContext().getSystemService(Context.ACTIVITY_SERVICE);
+        ConfigurationInfo configInfo = activityManager.getDeviceConfigurationInfo();
+        return configInfo.reqGlEsVersion >= 0x20000;
+    }
+}
