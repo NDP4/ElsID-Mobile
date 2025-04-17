@@ -48,6 +48,7 @@ public class CheckoutFragment extends Fragment {
                     public void onRemoveItem(int position) {
                         cartItems.remove(position);
                         updateCart();
+                        cartAdapter.notifyItemRemoved(position);
                     }
                 }
         );

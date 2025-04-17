@@ -16,8 +16,12 @@ import com.mobile2.uts_elsid.R;
 import com.mobile2.uts_elsid.model.Cart;
 
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+
+import android.app.AlertDialog;
+import android.widget.ImageButton;
 
 public class CartAdapter extends RecyclerView.Adapter<CartAdapter.ViewHolder> {
     private List<Cart> cartItems;
@@ -33,6 +37,8 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.ViewHolder> {
         void onQuantityChanged(int position, int newQuantity);
         void onRemoveItem(int position);
     }
+
+
 
     public CartAdapter(Context context, List<Cart> cartItems, CartClickListener listener) {
         this.context = context;
@@ -53,6 +59,14 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.ViewHolder> {
 
         holder.productName.setText(item.getTitle());
 
+        // Handle variant name visibility
+        if (item.getVariantName() != null && !item.getVariantName().isEmpty()) {
+            holder.variantName.setVisibility(View.VISIBLE);
+            holder.variantName.setText(item.getVariantName());
+        } else {
+            holder.variantName.setVisibility(View.GONE);
+        }
+
         // Format price to Indonesian Rupiah
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
         double finalPrice = item.getPrice() * (1 - item.getDiscount()/100.0);
@@ -72,6 +86,49 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.ViewHolder> {
                     .into(holder.productImage);
         }
 
+        // Single remove button click listener with confirmation dialog
+        holder.removeButton.setOnClickListener(v -> {
+            // Get the current adapter position
+            int adapterPosition = holder.getAdapterPosition();
+            if (adapterPosition != RecyclerView.NO_POSITION) {
+                new AlertDialog.Builder(context)
+                        .setTitle("Remove Item")
+                        .setMessage("Are you sure you want to remove this item from cart?")
+                        .setPositiveButton("Remove", (dialog, which) -> {
+                            if (listener != null) {
+                                listener.onRemoveItem(adapterPosition);
+                            }
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            }
+        });
+
+        // Add delete button click listener
+//        holder.removeButton.setOnClickListener(v -> {
+//            new AlertDialog.Builder(context)
+//                    .setTitle("Remove Item")
+//                    .setMessage("Are you sure you want to remove this item from cart?")
+//                    .setPositiveButton("Remove", (dialog, which) -> {
+//                        if (listener != null) {
+//                            listener.onRemoveItem(position);
+//                        }
+//                    })
+//                    .setNegativeButton("Cancel", null)
+//                    .show();
+//        });
+//
+//        // Second listener (direct removal)
+//        // Remove button
+//        holder.removeButton.setOnClickListener(v -> {
+//            if (listener != null) {
+//                listener.onRemoveItem(holder.getAdapterPosition());
+//            }
+//        });
+
+
+
+
         // Set click listeners
         holder.decreaseQuantity.setOnClickListener(v -> {
             int currentQty = item.getQuantity();
@@ -87,24 +144,26 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.ViewHolder> {
             }
         });
 
-        holder.removeButton.setOnClickListener(v ->
-                listener.onRemoveItem(position)
-        );
+//        holder.removeButton.setOnClickListener(v ->
+//                listener.onRemoveItem(position)
+//        );
     }
+
 
     @Override
     public int getItemCount() {
         return cartItems != null ? cartItems.size() : 0;
     }
 
+    // Add this method to update the cart items
     public void updateItems(List<Cart> newItems) {
-        this.cartItems = newItems;
+        this.cartItems = new ArrayList<>(newItems);
         notifyDataSetChanged();
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         ImageView productImage;
-        TextView productName, productPrice, quantityText;
+        TextView productName, productPrice, quantityText, variantName;
         View decreaseQuantity, increaseQuantity;
         ImageButton removeButton;
 
@@ -112,6 +171,7 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.ViewHolder> {
             super(itemView);
             productImage = itemView.findViewById(R.id.productImage);
             productName = itemView.findViewById(R.id.productName);
+            variantName = itemView.findViewById(R.id.variantName);
             productPrice = itemView.findViewById(R.id.productPrice);
             quantityText = itemView.findViewById(R.id.quantityText);
             decreaseQuantity = itemView.findViewById(R.id.decreaseButton);
@@ -119,4 +179,6 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.ViewHolder> {
             removeButton = itemView.findViewById(R.id.removeButton);
         }
     }
+
+
 }
