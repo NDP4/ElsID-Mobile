@@ -47,9 +47,11 @@ public class CheckoutFragment extends Fragment {
                     @Override
                     public void onRemoveItem(int position) {
                         cartItems.remove(position);
+                        cartManager.saveCart(cartItems);
                         updateCart();
                         cartAdapter.notifyItemRemoved(position);
                     }
+
                 }
         );
         binding.cartRecyclerView.setAdapter(cartAdapter);

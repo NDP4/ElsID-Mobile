@@ -191,15 +191,7 @@
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:textColor="@color/primary"/>
-                <TextView
-                    android:id="@+id/totalPriceText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginTop="8dp"
-                    tools:text="Rp 1.000.000"/>
+
             </LinearLayout>
 
             <!-- Add to Cart Button -->

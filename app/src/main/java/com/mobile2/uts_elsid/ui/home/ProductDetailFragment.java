@@ -107,7 +107,7 @@ public class ProductDetailFragment extends Fragment {
         binding.finalPriceText.setText(formatter.format(finalPrice));
 
         // Update total price to match the final price
-        binding.totalPriceText.setText(formatter.format(finalPrice));
+//        binding.totalPriceText.setText(formatter.format(finalPrice));
 
         // Show/hide original price and discount text
         if (discountToUse > 0) {
@@ -427,7 +427,7 @@ public class ProductDetailFragment extends Fragment {
 
         // Always update the final price display
         binding.finalPriceText.setText(formatter.format(finalPrice));
-        binding.totalPriceText.setText(formatter.format(finalPrice)); // Update total price too
+//        binding.totalPriceText.setText(formatter.format(finalPrice));
     }
 
     @Override

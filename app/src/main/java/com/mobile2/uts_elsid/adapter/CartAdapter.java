@@ -29,6 +29,7 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.ViewHolder> {
     private CartClickListener listener;
 
 
+
     public interface OnCartUpdateListener {
         void onCartUpdated();
     }

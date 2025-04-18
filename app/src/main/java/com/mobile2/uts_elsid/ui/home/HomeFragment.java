@@ -48,7 +48,10 @@ import com.mobile2.uts_elsid.api.BannerResponse;
 import com.mobile2.uts_elsid.api.LoginResponse;
 import com.mobile2.uts_elsid.api.ProductResponse;
 import com.mobile2.uts_elsid.databinding.FragmentHomeBinding;
+import com.mobile2.uts_elsid.model.Cart;
 import com.mobile2.uts_elsid.model.Product;
+import com.mobile2.uts_elsid.model.ProductVariant;
+import com.mobile2.uts_elsid.utils.CartManager;
 import com.mobile2.uts_elsid.utils.SessionManager;
 
 import java.util.ArrayList;
@@ -60,7 +63,8 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class HomeFragment extends Fragment {
+public class HomeFragment extends Fragment implements VariantSelectionBottomSheet.VariantSelectionListener {
+    private CartManager cartManager;
 
     private FragmentHomeBinding binding;
     private BannerAdapter bannerAdapter;
@@ -69,6 +73,8 @@ public class HomeFragment extends Fragment {
     private static final long SLIDE_DELAY = 3000; // 3 seconds
     private final Handler sliderHandler = new Handler(Looper.getMainLooper());
     private String baseUrl = "https://mobile2.ndp.my.id/";
+
+
 
     private final Runnable sliderRunnable = new Runnable() {
         @Override
@@ -82,10 +88,89 @@ public class HomeFragment extends Fragment {
         }
     };
 
+
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
+        cartManager = new CartManager(requireContext());
+
+        // Setup adapter with click listener
+        productAdapter = new ProductAdapter(requireContext(), productList);
+        productAdapter.setOnProductClickListener(new ProductAdapter.OnProductClickListener() {
+            @Override
+            public void onProductClick(Product product) {
+                navigateToProductDetail(product);
+            }
+
+//            @Override
+            public void onCartClick(Product product) {
+                handleAddToCart(product);
+            }
+        });
+
         return binding.getRoot();
+    }
+//    private void handleAddToCart(Product product) {
+//        if (product.getHasVariants() == 1 && product.getVariants() != null && !product.getVariants().isEmpty()) {
+//            // Show variant selection bottom sheet
+//            VariantSelectionBottomSheet bottomSheet = new VariantSelectionBottomSheet(product, (VariantSelectionBottomSheet.VariantSelectionListener) this);
+//            bottomSheet.show(getChildFragmentManager(), "variant_selection");
+//        } else {
+//            // Add product directly without variant
+//            addProductToCart(product, null);
+//        }
+//    }
+    private void handleAddToCart(Product product) {
+        // Create new Cart item from Product
+        Cart cartItem = new Cart(
+                product.getId(),
+                product.getTitle(), // Changed from getName() to getTitle()
+                product.getImages() != null && !product.getImages().isEmpty()
+                        ? product.getImages().get(0)
+                        : "", // Get first image URL or empty string
+                product.getPrice(),
+                1, // Initial quantity
+                product.getMainStock(), // Changed from getStock() to getMainStock()
+                product.getVariants() != null && !product.getVariants().isEmpty()
+                        ? product.getVariants().get(0).getName()
+                        : "", // Get first variant name or empty string
+                product.getDiscount() // Add discount
+        );
+
+        // Add to cart and show success message
+        cartManager.addToCart(cartItem);
+        Toasty.success(requireContext(), "Added to cart", Toasty.LENGTH_SHORT).show();
+    }
+    private void addProductToCart(Product product, ProductVariant variant) {
+        // Get price and discount based on variant or main product
+        double price = variant != null ? variant.getPrice() : product.getPrice();
+        double discount = variant != null ? variant.getDiscount() : product.getDiscount();
+        int stock = variant != null ? variant.getStock() : product.getMainStock();
+        String variantName = variant != null ? variant.getName() : "";
+
+        // Create cart item
+        Cart cartItem = new Cart(
+                product.getId(),
+                product.getTitle(),
+                product.getImages() != null && !product.getImages().isEmpty() ? product.getImages().get(0) : "",
+                price,
+                1, // Initial quantity
+                stock,
+                variantName,
+                discount
+        );
+
+        // Add to cart
+        cartManager.addToCart(cartItem);
+
+        // Show success message
+        Toasty.success(requireContext(),
+                "Added " + product.getTitle() + (variant != null ? " (" + variant.getName() + ")" : "") + " to cart",
+                Toast.LENGTH_SHORT).show();
+    }
+    @Override
+    public void onVariantSelected(Product product, ProductVariant variant) {
+        addProductToCart(product, variant);
     }
 
     @Override
@@ -102,13 +187,23 @@ public class HomeFragment extends Fragment {
             userNameText.setText(userData.getUser().getFullname());
 
             // Add cart button click listener
+//            binding.cartButton.setOnClickListener(v -> {
+//                NavController navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment_activity_home);
+//                navController.navigate(R.id.navigation_checkout, null, new NavOptions.Builder()
+//                        .setPopUpTo(R.id.navigation_home, true)  // true to remove home from back stack
+//                        .setLaunchSingleTop(true)
+//                        .build());
+//            });
             binding.cartButton.setOnClickListener(v -> {
+                Log.d("HomeFragment", "Navigating to Checkout");
+                Toasty.success(requireContext(), "Navigating to checkout", Toasty.LENGTH_SHORT).show();
                 NavController navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment_activity_home);
                 navController.navigate(R.id.navigation_checkout, null, new NavOptions.Builder()
-                        .setPopUpTo(R.id.navigation_home, true)  // true to remove home from back stack
+                        .setPopUpTo(R.id.navigation_home, true)
                         .setLaunchSingleTop(true)
                         .build());
             });
+
         }
 
         initViews();
@@ -141,12 +236,10 @@ public class HomeFragment extends Fragment {
                 }).attach();
 
         // Initialize products
-        productAdapter = new ProductAdapter(requireContext(), productList);
         binding.productsRecyclerView.setLayoutManager(new GridLayoutManager(requireContext(), 2));
         binding.productsRecyclerView.setAdapter(productAdapter);
         binding.productsRecyclerView.setHasFixedSize(true); // Add this
         binding.productsRecyclerView.setNestedScrollingEnabled(false); // Add this
-        binding.productsRecyclerView.setAdapter(productAdapter);
         productAdapter.setOnProductClickListener(product -> {
             // Add debug logging
             Log.d("HomeFragment", "Clicked product: " +
@@ -311,9 +404,14 @@ public class HomeFragment extends Fragment {
                 }
             }
 
+//            @Override
+//            public void onFailure(@NonNull Call<BannerResponse> call, @NonNull Throwable t) {
+//                Toasty.error(requireContext(), "Failed to load banners: " + t.getMessage(), Toasty.LENGTH_SHORT).show();
+//            }
             @Override
             public void onFailure(@NonNull Call<BannerResponse> call, @NonNull Throwable t) {
-                Toasty.error(requireContext(), "Failed to load banners: " + t.getMessage(), Toasty.LENGTH_SHORT).show();
+                Log.e("Banner Load Failed", "Error: " + t.getMessage());
+                Toasty.error(requireContext(), "Failed to load banners", Toasty.LENGTH_SHORT).show();
             }
         });
     }
@@ -400,12 +498,19 @@ public class HomeFragment extends Fragment {
         sliderHandler.removeCallbacks(sliderRunnable);
     }
 
+//    @Override
+//    public void onDestroyView() {
+//        super.onDestroyView();
+//        sliderHandler.removeCallbacks(sliderRunnable);
+//        binding = null;
+//    }
     @Override
     public void onDestroyView() {
         super.onDestroyView();
         sliderHandler.removeCallbacks(sliderRunnable);
         binding = null;
     }
+
 
     private void setupImageLoading() {
         if (!supportsHardwareAcceleration()) {
@@ -420,5 +525,21 @@ public class HomeFragment extends Fragment {
         ActivityManager activityManager = (ActivityManager) requireContext().getSystemService(Context.ACTIVITY_SERVICE);
         ConfigurationInfo configInfo = activityManager.getDeviceConfigurationInfo();
         return configInfo.reqGlEsVersion >= 0x20000;
+    }
+
+//    public interface VariantSelectionListener {
+//        void onVariantSelected(Product product, ProductVariant variant);
+//    }
+
+
+    private void navigateToProductDetail(Product product) {
+        Bundle bundle = new Bundle();
+        bundle.putInt("product_id", product.getId());
+        NavOptions navOptions = new NavOptions.Builder()
+                .setLaunchSingleTop(true)
+                .setPopUpTo(R.id.navigation_home, false)
+                .build();
+        Navigation.findNavController(requireView())
+                .navigate(R.id.navigation_product_detail, bundle, navOptions);
     }
 }

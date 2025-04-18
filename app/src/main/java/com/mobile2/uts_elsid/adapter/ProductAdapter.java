@@ -1,13 +1,19 @@
 package com.mobile2.uts_elsid.adapter;
 
+import static androidx.core.content.ContentProviderCompat.requireContext;
+
 import android.content.Context;
 import android.graphics.Paint;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.navigation.NavController;
+import androidx.navigation.NavOptions;
+import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.google.android.material.button.MaterialButton;
@@ -23,6 +29,8 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHold
     private Context context;
     private List<Product> products;
     private OnProductClickListener listener;
+
+
 
     public interface OnProductClickListener {
         void onProductClick(Product product);
@@ -93,10 +101,19 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHold
 
 
         // Handle cart button click
-        holder.cartButton.setOnClickListener(v -> {
-            Toasty.success(context, "Added " + product.getTitle() + " to cart", Toasty.LENGTH_SHORT).show();
-            // TODO: Implement cart functionality
-        });
+//        holder.cartButton.setOnClickListener(v -> {
+//            Toasty.success(context, "Added " + product.getTitle() + " to cart", Toasty.LENGTH_SHORT).show();
+//            // TODO: Implement cart functionality
+//        });
+//        holder.cartButton.setOnClickListener(v -> {
+//            Log.d("HomeFragment", "Navigating to Checkout");
+//            Toasty.success(requireContext(), "Navigating to checkout", Toasty.LENGTH_SHORT).show();
+//            NavController navController = Navigation.findNavController((), R.id.nav_host_fragment_activity_home);
+//            navController.navigate(R.id.navigation_checkout, null, new NavOptions.Builder()
+//                    .setPopUpTo(R.id.navigation_home, true)
+//                    .setLaunchSingleTop(true)
+//                    .build());
+//        });
     }
 
     @Override

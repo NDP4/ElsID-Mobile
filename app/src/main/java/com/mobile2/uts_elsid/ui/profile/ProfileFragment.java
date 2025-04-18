@@ -10,8 +10,10 @@ import android.widget.Button;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.Navigation;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.mobile2.uts_elsid.LoginActivity;
 import com.mobile2.uts_elsid.R;
@@ -107,6 +109,8 @@ public class ProfileFragment extends Fragment {
             String avatarUrl = "https://mobile2.ndp.my.id/" + user.getAvatar();
             Glide.with(this)
                     .load(avatarUrl)
+                    .diskCacheStrategy(DiskCacheStrategy.NONE)
+                    .skipMemoryCache(true)
                     .placeholder(R.drawable.default_avatar)
                     .error(R.drawable.default_avatar)
                     .circleCrop()
@@ -115,8 +119,8 @@ public class ProfileFragment extends Fragment {
     }
 
     private void openEditProfile() {
-        // Navigate to edit profile fragment/activity
-        // TODO: Implement navigation to edit profile screen
+        Navigation.findNavController(requireView())
+                .navigate(R.id.navigation_edit_profile);
     }
 
     private void logout() {
