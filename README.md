@@ -1,5 +1,6 @@
-dependencies {
+dependencies 
     
+    {
     // AndroidX Core Libraries
     implementation(libs.appcompat)
     implementation(libs.material)
@@ -45,10 +46,9 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.9.0")
 
     // implementation("androidx.loader:loader:2.1.0")
-}
+    }
 
 setting gradel:
-{
 
     pluginManagement {
         repositories {
@@ -76,8 +76,7 @@ setting gradel:
     rootProject.name = "UTS_elsid"
     include(":app")
 
-}
 
 gradel properties :
 
-``org.gradle.jvmargs=-Xmx2048m -XX:MaxPermSize=512m -Dfile.encoding=UTF-8``
+    org.gradle.jvmargs=-Xmx2048m -XX:MaxPermSize=512m -Dfile.encoding=UTF-8
