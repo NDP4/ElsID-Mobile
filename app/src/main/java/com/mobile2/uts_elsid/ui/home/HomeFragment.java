@@ -1,9 +1,10 @@
 package com.mobile2.uts_elsid.ui.home;
 
+import static com.mobile2.uts_elsid.utils.CategoryIconMapper.getCategoryIcon;
+
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.ConfigurationInfo;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -25,21 +26,11 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
-import android.graphics.drawable.Drawable;
-import androidx.annotation.Nullable;
-import com.bumptech.glide.load.DataSource;
-import com.bumptech.glide.load.engine.GlideException;
-import com.bumptech.glide.load.resource.bitmap.CircleCrop;
-import com.bumptech.glide.request.RequestListener;
-import com.bumptech.glide.request.target.Target;
-
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.engine.GlideException;
 import com.google.android.material.chip.Chip;
-import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.material.tabs.TabLayoutMediator;
 import com.mobile2.uts_elsid.R;
 import com.mobile2.uts_elsid.adapter.BannerAdapter;
+import com.mobile2.uts_elsid.adapter.CategoryChipAdapter;
 import com.mobile2.uts_elsid.adapter.ProductAdapter;
 import com.mobile2.uts_elsid.adapter.SearchSuggestionsAdapter;
 import com.mobile2.uts_elsid.api.ApiClient;
@@ -52,6 +43,8 @@ import com.mobile2.uts_elsid.model.Cart;
 import com.mobile2.uts_elsid.model.Product;
 import com.mobile2.uts_elsid.model.ProductVariant;
 import com.mobile2.uts_elsid.utils.CartManager;
+import com.mobile2.uts_elsid.utils.CategoryIconMapper;
+import com.mobile2.uts_elsid.utils.GridSpacingItemDecoration;
 import com.mobile2.uts_elsid.utils.SessionManager;
 
 import java.util.ArrayList;
@@ -65,6 +58,9 @@ import retrofit2.Response;
 
 public class HomeFragment extends Fragment implements VariantSelectionBottomSheet.VariantSelectionListener {
     private CartManager cartManager;
+    private TextView cartBadge;
+    private ProductAdapter unavailableProductAdapter;
+    private List<Product> unavailableProducts = new ArrayList<>();
 
     private FragmentHomeBinding binding;
     private BannerAdapter bannerAdapter;
@@ -93,8 +89,12 @@ public class HomeFragment extends Fragment implements VariantSelectionBottomShee
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
         cartManager = new CartManager(requireContext());
+        cartBadge = binding.cartBadge;
 
-        // Setup adapter with click listener
+        // Update cart badge count
+        updateCartBadge(getCartItemCount());
+
+        // Setup adapter
         productAdapter = new ProductAdapter(requireContext(), productList);
         productAdapter.setOnProductClickListener(new ProductAdapter.OnProductClickListener() {
             @Override
@@ -108,8 +108,22 @@ public class HomeFragment extends Fragment implements VariantSelectionBottomShee
             }
         });
 
-        return binding.getRoot();
+        return binding.getRoot(); // FINAL RETURN
     }
+
+
+    private void updateCartBadge(int count) {
+        if (count > 0) {
+            cartBadge.setVisibility(View.VISIBLE);
+            cartBadge.setText(String.valueOf(count));
+        } else {
+            cartBadge.setVisibility(View.GONE);
+        }
+    }
+    private int getCartItemCount() {
+        return cartManager.getCartItemCount();
+    }
+
 //    private void handleAddToCart(Product product) {
 //        if (product.getHasVariants() == 1 && product.getVariants() != null && !product.getVariants().isEmpty()) {
 //            // Show variant selection bottom sheet
@@ -229,6 +243,14 @@ public class HomeFragment extends Fragment implements VariantSelectionBottomShee
             }
         });
 
+        // Initialize unavailable products
+        unavailableProductAdapter = new ProductAdapter(requireContext(), unavailableProducts);
+        unavailableProductAdapter.setShowUnavailableUI(true); // metode untuk menampilkan UI tidak tersedia
+        binding.unavailableProductsRecyclerView.setLayoutManager(
+                new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        );
+        binding.unavailableProductsRecyclerView.setAdapter(unavailableProductAdapter);
+
         // Setup TabLayout with ViewPager2
         new TabLayoutMediator(binding.bannerIndicator, binding.bannerViewPager,
                 (tab, position) -> {
@@ -254,7 +276,7 @@ public class HomeFragment extends Fragment implements VariantSelectionBottomShee
 
             NavOptions navOptions = new NavOptions.Builder()
                     .setLaunchSingleTop(true)
-                    .setPopUpTo(R.id.navigation_home, true)  // false to preserve home in back stack
+//                    .setPopUpTo(R.id.navigation_home, true)  // false to preserve home in back stack
                     .build();
             Navigation.findNavController(requireView())
                     .navigate(R.id.navigation_product_detail, bundle, navOptions);
@@ -416,6 +438,90 @@ public class HomeFragment extends Fragment implements VariantSelectionBottomShee
         });
     }
 
+//    private void loadProducts() {
+//        ApiService apiService = ApiClient.getClient().create(ApiService.class);
+//        Call<ProductResponse> call = apiService.getProducts();
+//
+//        call.enqueue(new Callback<ProductResponse>() {
+//            @Override
+//            public void onResponse(@NonNull Call<ProductResponse> call, @NonNull Response<ProductResponse> response) {
+//                binding.swipeRefresh.setRefreshing(false);
+//                if (response.isSuccessful() && response.body() != null) {
+//                    productList = response.body().getProducts();
+//                    productAdapter.updateData(productList);
+//                    updateCategories(productList);
+//                }
+//            }
+//
+//            @Override
+//            public void onFailure(@NonNull Call<ProductResponse> call, @NonNull Throwable t) {
+//                binding.swipeRefresh.setRefreshing(false);
+//                Toasty.error(requireContext(), "Error loading products: " + t.getMessage(),
+//                        Toast.LENGTH_SHORT).show();
+//            }
+//        });
+//    }
+//private void loadProducts() {
+//    ApiService apiService = ApiClient.getClient().create(ApiService.class);
+//    Call<ProductResponse> call = apiService.getProducts();
+//    List<Product> availableProducts = new ArrayList<>();
+//    List<Product> unavailableProducts = new ArrayList<>();
+//
+//    call.enqueue(new Callback<ProductResponse>() {
+//        @Override
+//        public void onResponse(@NonNull Call<ProductResponse> call, @NonNull Response<ProductResponse> response) {
+//            binding.swipeRefresh.setRefreshing(false);
+//            if (response.isSuccessful() && response.body() != null) {
+//                // Pisahkan produk tersedia dan tidak tersedia
+//                List<Product> allProducts = response.body().getProducts();
+//                List<Product> availableProducts = new ArrayList<>();
+//                unavailableProducts.clear();
+//
+//                for (Product product : allProducts) {
+//                    if ("available".equalsIgnoreCase(product.getStatus())) {
+//                        availableProducts.add(product);
+//                    } else {
+//                        unavailableProducts.add(product);
+//                    }
+//                }
+//
+//                // Separasi produk yang tidak tersedia
+//                for (Product product : allProducts) {
+//                    if (product.getMainStock()> 0) {
+//                        availableProducts.add(product);
+//                    }else {
+//                        unavailableProducts.add(product);
+//                    }
+//                }
+//
+//                // setup available products grid
+//                GridLayoutManager gridLayoutManager = new GridLayoutManager(requireContext(), 2);
+//                productAdapter = new ProductAdapter(requireContext(), availableProducts);
+//                binding.productsRecyclerView.setLayoutManager(gridLayoutManager);
+//                binding.productsRecyclerView.setAdapter(productAdapter);
+//
+//                productList = availableProducts;
+//                productAdapter.updateData(productList);
+//                updateCategories(productList);
+//
+//                // Update unavailable products
+//                if (unavailableProductAdapter != null) {
+//                    unavailableProductAdapter.updateData(unavailableProducts);
+//                    binding.unavailableProductsSection.setVisibility(
+//                            unavailableProducts.isEmpty() ? View.GONE : View.VISIBLE
+//                    );
+//                }
+//            }
+//        }
+//
+//        @Override
+//        public void onFailure(@NonNull Call<ProductResponse> call, @NonNull Throwable t) {
+//            binding.swipeRefresh.setRefreshing(false);
+//            Toasty.error(requireContext(), "Error loading products: " + t.getMessage(),
+//                    Toast.LENGTH_SHORT).show();
+//        }
+//    });
+//}
     private void loadProducts() {
         ApiService apiService = ApiClient.getClient().create(ApiService.class);
         Call<ProductResponse> call = apiService.getProducts();
@@ -425,9 +531,31 @@ public class HomeFragment extends Fragment implements VariantSelectionBottomShee
             public void onResponse(@NonNull Call<ProductResponse> call, @NonNull Response<ProductResponse> response) {
                 binding.swipeRefresh.setRefreshing(false);
                 if (response.isSuccessful() && response.body() != null) {
-                    productList = response.body().getProducts();
-                    productAdapter.updateData(productList);
+                    List<Product> allProducts = response.body().getProducts();
+                    List<Product> availableProducts = new ArrayList<>();
+                    unavailableProducts.clear();
+
+                    // Pisahkan produk dengan status "available" DAN stock > 0
+                    for (Product product : allProducts) {
+                        if ("available".equalsIgnoreCase(product.getStatus()) && product.getMainStock() > 0) {
+                            availableProducts.add(product);
+                        } else {
+                            unavailableProducts.add(product);
+                        }
+                    }
+
+                    // Update adapter tanpa membuat instance baru
+                    productList = availableProducts;
+                    productAdapter.updateData(productList); // <-- Gunakan updateData()
+
+                    // Update kategori
                     updateCategories(productList);
+
+                    // Update produk tidak tersedia
+                    unavailableProductAdapter.updateData(unavailableProducts);
+                    binding.unavailableProductsSection.setVisibility(
+                            unavailableProducts.isEmpty() ? View.GONE : View.VISIBLE
+                    );
                 }
             }
 
@@ -440,34 +568,105 @@ public class HomeFragment extends Fragment implements VariantSelectionBottomShee
         });
     }
 
+//    private void updateCategories(List<Product> products) {
+//        Set<String> categories = new HashSet<>();
+//        for (Product product : products) {
+//            categories.add(product.getCategory());
+//        }
+//
+//        binding.categoryChipGroup.removeAllViews();
+//
+//        // Add "All" category
+//        Chip allChip = new Chip(requireContext());
+//        allChip.setText("All");
+//        allChip.setCheckable(true);
+//        allChip.setChecked(true);
+//        binding.categoryChipGroup.addView(allChip);
+//
+//        // Add other categories
+//        for (String category : categories) {
+//            Chip chip = new Chip(requireContext());
+//            chip.setText(category);
+//            chip.setCheckable(true);
+//            binding.categoryChipGroup.addView(chip);
+//        }
+//
+//        // Handle category selection
+//        binding.categoryChipGroup.setOnCheckedChangeListener((group, checkedId) -> {
+//            Chip selectedChip = group.findViewById(checkedId);
+//            filterProducts(selectedChip != null ? selectedChip.getText().toString() : "All");
+//        });
+//    }
+//    private void updateCategories(List<Product> products) {
+//        Set<String> categories = new HashSet<>();
+//        for (Product product : products) {
+//            categories.add(product.getCategory());
+//        }
+//
+//        binding.categoryChipGroup.removeAllViews();
+//
+//        // Chip "All"
+//        Chip allChip = new Chip(requireContext());
+//        allChip.setText("All");
+//        allChip.setChipIconResource(R.drawable.ic_all); // Ikon untuk "All"
+//        allChip.setChipIconVisible(true);
+//        allChip.setCheckable(true);
+//        allChip.setChecked(true);
+//        binding.categoryChipGroup.addView(allChip);
+//
+//        // Chip kategori lainnya
+//        for (String category : categories) {
+//            Chip chip = new Chip(requireContext());
+//            chip.setText(category);
+//
+//            // Debug: Log normalized category name
+//            String normalized = category.toLowerCase()
+//                    .replaceAll("\\s+", "")
+//                    .replace("-", "")
+//                    .replace("_", "")
+//                    .trim();
+//            Log.d("CategoryDebug", "Original: " + category + " | Normalized: " + normalized);
+//
+//            int iconRes = CategoryIconMapper.getCategoryIcon(category);
+//            chip.setChipIconResource(iconRes);
+//
+//            chip.setCheckable(true);
+//            binding.categoryChipGroup.addView(chip);
+//        }
+//
+//        // Handle pemilihan kategori
+//        binding.categoryChipGroup.setOnCheckedChangeListener((group, checkedId) -> {
+//            Chip selectedChip = group.findViewById(checkedId);
+//            filterProducts(selectedChip != null ? selectedChip.getText().toString() : "All");
+//        });
+//    }
     private void updateCategories(List<Product> products) {
         Set<String> categories = new HashSet<>();
         for (Product product : products) {
             categories.add(product.getCategory());
         }
 
-        binding.categoryChipGroup.removeAllViews();
+        List<String> categoryList = new ArrayList<>(categories);
 
-        // Add "All" category
-        Chip allChip = new Chip(requireContext());
-        allChip.setText("All");
-        allChip.setCheckable(true);
-        allChip.setChecked(true);
-        binding.categoryChipGroup.addView(allChip);
-
-        // Add other categories
-        for (String category : categories) {
-            Chip chip = new Chip(requireContext());
-            chip.setText(category);
-            chip.setCheckable(true);
-            binding.categoryChipGroup.addView(chip);
+        // Batasi maksimal 8 item untuk 2 baris (4x2)
+        if (categoryList.size() > 9) {
+            categoryList = categoryList.subList(0, 8);
         }
+        categoryList.add(0, "All"); // Add "All" category at the beginning
 
-        // Handle category selection
-        binding.categoryChipGroup.setOnCheckedChangeListener((group, checkedId) -> {
-            Chip selectedChip = group.findViewById(checkedId);
-            filterProducts(selectedChip != null ? selectedChip.getText().toString() : "All");
+
+        // Setup RecyclerView
+        GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 4);
+        binding.categoryRecyclerView.addItemDecoration(new GridSpacingItemDecoration(4, 16, true));
+        binding.categoryRecyclerView.setLayoutManager(layoutManager);
+        CategoryChipAdapter adapter = new CategoryChipAdapter(categoryList, new CategoryChipAdapter.OnCategoryClickListener() {
+            @Override
+            public void onCategoryClick(String category) {
+                filterProducts(category);
+            }
         });
+
+        binding.categoryRecyclerView.setAdapter(adapter);
     }
 
     private void filterProducts(String category) {
@@ -532,13 +731,26 @@ public class HomeFragment extends Fragment implements VariantSelectionBottomShee
 //    }
 
 
+//    private void navigateToProductDetail(Product product) {
+//        Bundle bundle = new Bundle();
+//        bundle.putInt("product_id", product.getId());
+//        NavOptions navOptions = new NavOptions.Builder()
+//                .setLaunchSingleTop(true)
+//                .setPopUpTo(R.id.navigation_home, false)
+//                .build();
+//        Navigation.findNavController(requireView())
+//                .navigate(R.id.navigation_product_detail, bundle, navOptions);
+//    }
     private void navigateToProductDetail(Product product) {
         Bundle bundle = new Bundle();
         bundle.putInt("product_id", product.getId());
+
+        // Update NavOptions - jangan hapus home dari back stack
         NavOptions navOptions = new NavOptions.Builder()
                 .setLaunchSingleTop(true)
-                .setPopUpTo(R.id.navigation_home, false)
+                .setPopUpTo(R.id.navigation_home, false, true) // false agar home tetap ada di back stack
                 .build();
+
         Navigation.findNavController(requireView())
                 .navigate(R.id.navigation_product_detail, bundle, navOptions);
     }

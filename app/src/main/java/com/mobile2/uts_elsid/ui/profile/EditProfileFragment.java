@@ -1,6 +1,9 @@
 package com.mobile2.uts_elsid.ui.profile;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.ContentResolver;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -11,6 +14,9 @@ import android.view.ViewGroup;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
 
@@ -75,6 +81,13 @@ public class EditProfileFragment extends Fragment {
             }
         });
 
+        // show notification permission dialog
+        if (ActivityCompat.checkSelfPermission(requireContext(), android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(requireActivity(),
+                    new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
+        }
+
         return binding.getRoot();
     }
 
@@ -134,7 +147,7 @@ public class EditProfileFragment extends Fragment {
 
     private void setupListeners() {
         binding.saveButton.setOnClickListener(v -> saveChanges());
-        binding.changeAvatarButton.setOnClickListener(v -> openImagePicker());
+//        binding.changeAvatarButton.setOnClickListener(v -> openImagePicker());
     }
 
     private void saveChanges() {
@@ -181,6 +194,8 @@ public class EditProfileFragment extends Fragment {
                 if (response.code() == 200) {
                     Toasty.success(requireContext(), "Profile updated successfully", Toasty.LENGTH_SHORT).show();
                     Navigation.findNavController(requireView()).navigateUp();
+                    showNotification("Profile Updated", "Your profile has been updated successfully.");
+                    requireActivity().onBackPressed();
                 } else {
                     Toasty.error(requireContext(), "Update failed: " + response.message(), Toasty.LENGTH_SHORT).show();
                 }
@@ -205,7 +220,7 @@ public class EditProfileFragment extends Fragment {
 
         try {
             binding.loadingIndicator.setVisibility(View.VISIBLE);
-            binding.changeAvatarButton.setEnabled(false);
+//            binding.changeAvatarButton.setEnabled(false);
 
             // Create MultipartBody.Part
             File file = createTempFileFromUri(imageUri);
@@ -231,7 +246,7 @@ public class EditProfileFragment extends Fragment {
                 @Override
                 public void onResponse(@NonNull Call<ResponseBody> call, @NonNull Response<ResponseBody> response) {
                     binding.loadingIndicator.setVisibility(View.GONE);
-                    binding.changeAvatarButton.setEnabled(true);
+//                    binding.changeAvatarButton.setEnabled(true);
 
                     if (response.isSuccessful() && response.body() != null) {
                         try {
@@ -258,7 +273,7 @@ public class EditProfileFragment extends Fragment {
                 @Override
                 public void onFailure(@NonNull Call<ResponseBody> call, @NonNull Throwable t) {
                     binding.loadingIndicator.setVisibility(View.GONE);
-                    binding.changeAvatarButton.setEnabled(true);
+//                    binding.changeAvatarButton.setEnabled(true);
                     android.util.Log.e("EditProfile", "Upload failed", t);
                     Toasty.error(requireContext(), "Upload failed: " + t.getMessage(), Toasty.LENGTH_SHORT).show();
                 }
@@ -266,7 +281,7 @@ public class EditProfileFragment extends Fragment {
 
         } catch (Exception e) {
             binding.loadingIndicator.setVisibility(View.GONE);
-            binding.changeAvatarButton.setEnabled(true);
+//            binding.changeAvatarButton.setEnabled(true);
             android.util.Log.e("EditProfile", "Error preparing upload", e);
             Toasty.error(requireContext(), "Error preparing file: " + e.getMessage(), Toasty.LENGTH_SHORT).show();
         }
@@ -311,5 +326,36 @@ public class EditProfileFragment extends Fragment {
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+    }
+
+    private void showNotification(String title, String message) {
+        // Create notification channel for Android O and above
+        String channelId = "profile_updates";
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    channelId,
+                    "Profile Updates",
+                    NotificationManager.IMPORTANCE_DEFAULT
+            );
+            NotificationManager notificationManager = requireContext().getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
+        }
+
+        // Build the notification
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(requireContext(), channelId)
+                .setSmallIcon(R.drawable.ic_edit)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true);
+
+        // Show the notification
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(requireContext());
+
+        // Check for notification permission
+        if (ActivityCompat.checkSelfPermission(requireContext(), android.Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) {
+            notificationManager.notify(1, builder.build());
+        }
     }
 }

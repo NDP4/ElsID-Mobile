@@ -30,6 +30,18 @@
                 android:scaleType="centerCrop"/>
 
             <TextView
+                android:id="@+id/soldOutLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sold Out"
+                android:textColor="@color/text_white"
+                android:background="@color/error"
+                android:padding="4dp"
+                android:layout_gravity="start|top"
+                android:layout_margin="8dp"
+                android:visibility="gone"/>
+
+            <TextView
                 android:id="@+id/discountText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -42,6 +54,20 @@
                 android:visibility="gone"
                 tools:text="-20%"
                 tools:visibility="visible"/>
+
+            <!-- Wishlist Button -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/wishlistButton"
+                android:layout_width="wrap_content"
+                android:layout_height="45dp"
+                android:layout_gravity="end|bottom"
+                android:layout_margin="8dp"
+                app:fabSize="auto"
+                app:srcCompat="@drawable/ic_favorite_border"
+                app:tint="@color/wishlist_icon_inactive"
+                app:backgroundTint="@android:color/transparent"
+                app:elevation="0dp" />
+
         </FrameLayout>
 
         <LinearLayout

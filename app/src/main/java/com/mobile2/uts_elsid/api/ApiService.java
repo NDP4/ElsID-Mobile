@@ -1,6 +1,8 @@
 // ApiService.java
 package com.mobile2.uts_elsid.api;
 
+import java.util.List;
+
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 import okhttp3.ResponseBody;
@@ -80,5 +82,12 @@ public interface ApiService {
 //    Call<ProductDetailResponse> getProductDetail(@Query("id") String productId);
     @GET("product_elsid.php")
     Call<ProductDetailResponse> getProductDetail(@Query("id") String productId);
+
+    @GET("product_elsid.php")
+    Call<ProductResponse> getProduct(@Query("id") int id);
+
+    // Di ApiService.java
+    @GET("product_elsid.php")
+    Call<List<ProductResponse>> getProductsByIds(@Query("ids") List<Integer> ids);
 
 }

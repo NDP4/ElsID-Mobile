@@ -20,6 +20,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
+                <!-- Background -->
                 <ImageView
                     android:id="@+id/headerBackground"
                     android:layout_width="match_parent"
@@ -28,17 +29,17 @@
                     android:src="@drawable/bg_header"
                     app:layout_constraintTop_toTopOf="parent"/>
 
-                <!-- User Info Section -->
+                <!-- User Info -->
                 <LinearLayout
                     android:id="@+id/userInfoContainer"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="16dp"
                     android:layout_marginTop="16dp"
                     android:orientation="vertical"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toStartOf="@id/cartButton"
-                    app:layout_constraintTop_toTopOf="parent">
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="@+id/cartContainer">
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -56,28 +57,45 @@
                         android:textStyle="bold"/>
                 </LinearLayout>
 
-                <!-- Cart Button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/cartButton"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                <!-- Cart and Badge -->
+                <FrameLayout
+                    android:id="@+id/cartContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_marginEnd="16dp"
-                    android:insetLeft="0dp"
-                    android:insetTop="0dp"
-                    android:insetRight="0dp"
-                    android:insetBottom="0dp"
-                    android:padding="8dp"
-                    app:icon="@drawable/ic_cart"
-                    app:iconGravity="textStart"
-                    app:iconPadding="0dp"
-                    app:iconTint="@color/text_white"
-                    app:cornerRadius="20dp"
-                    app:backgroundTint="@color/primary_dark"
                     app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="@id/userInfoContainer"
-                    app:layout_constraintBottom_toBottomOf="@id/userInfoContainer"/>
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="@id/userInfoContainer">
 
-                <!-- Search Bar -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/cartButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:icon="@drawable/ic_cart"
+                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                        android:padding="12dp"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        app:iconGravity="textStart"
+                        app:iconPadding="0dp"/>
+
+                    <TextView
+                        android:id="@+id/cartBadge"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="center_vertical|right"
+                        android:layout_marginEnd="-0dp"
+                        android:layout_marginTop="-8dp"
+                        android:background="@drawable/badge_background"
+                        android:gravity="center"
+                        android:textColor="@color/text_white"
+                        android:textSize="12sp"
+                        android:visibility="gone"
+                        tools:text="1"
+                        tools:visibility="visible"/>
+                </FrameLayout>
+
+                <!-- Search -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/searchContainer"
                     android:layout_width="0dp"
@@ -116,10 +134,10 @@
                             android:maxHeight="200dp"/>
 
                     </LinearLayout>
-
                 </com.google.android.material.card.MaterialCardView>
 
             </androidx.constraintlayout.widget.ConstraintLayout>
+
 
             <!-- Existing Banner Section -->
             <androidx.cardview.widget.CardView
@@ -136,6 +154,8 @@
                     android:layout_height="match_parent" />
             </androidx.cardview.widget.CardView>
 
+
+
             <!-- Rest of your existing layout -->
             <com.google.android.material.tabs.TabLayout
                 android:id="@+id/bannerIndicator"
@@ -150,18 +170,40 @@
                 app:tabPaddingStart="4dp"
                 android:contentDescription="Banner page indicator" />
 
-            <HorizontalScrollView
+            <!-- Category Section -->
+            <TextView
+                android:id="@+id/categoryTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Categories"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"/>
+            <!-- Category Grid 4 Kolom -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/categoryRecyclerView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:scrollbars="none">
+                android:layout_marginHorizontal="8dp"
+                android:paddingVertical="8dp"
+                android:nestedScrollingEnabled="false"
+                app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+                app:spanCount="4"
+                tools:listitem="@layout/item_category_chip"/>
 
-                <com.google.android.material.chip.ChipGroup
-                    android:id="@+id/categoryChipGroup"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:padding="8dp"
-                    app:singleSelection="true" />
-            </HorizontalScrollView>
+            <!-- Products Section -->
+            <TextView
+                android:id="@+id/productsTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Products"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_marginTop="16dp"
+                android:layout_marginStart="16dp"/>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/productsRecyclerView"
@@ -174,6 +216,34 @@
                 tools:itemCount="4"
                 tools:spanCount="2"
                 tools:layoutManager="androidx.recyclerview.widget.GridLayoutManager" />
+
+            <!-- Unavailable Products Section -->
+            <LinearLayout
+                android:id="@+id/unavailableProductsSection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Currently Unavailable"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp"/>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/unavailableProductsRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clipToPadding="false"
+                    android:orientation="horizontal"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"/>
+
+            </LinearLayout>
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

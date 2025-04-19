@@ -38,6 +38,11 @@ public class CartManager {
         editor.putString(KEY_CART, cartJson);
         editor.apply();
     }
+    // Di CartManager.java
+    public int getCartItemCount() {
+        List<Cart> cartItems = getCart();
+        return cartItems != null ? cartItems.size() : 0;
+    }
 
     public void addToCart(Cart newItem) {
         List<Cart> cart = getCart();

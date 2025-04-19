@@ -10,10 +10,12 @@ import android.widget.Button;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.mobile2.uts_elsid.LoginActivity;
 import com.mobile2.uts_elsid.R;
@@ -42,6 +44,17 @@ public class ProfileFragment extends Fragment {
         // Load user data
         loadUserProfile();
 
+        MaterialButton wishlistButton = binding.wishlistButton;
+        wishlistButton.setOnClickListener(v -> {
+            NavController navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment_activity_home);
+            navController.navigate(R.id.navigation_wishlist);
+        });
+
+        binding.aboutButton.setOnClickListener(v -> {
+            NavController navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment_activity_home);
+            navController.navigate(R.id.navigation_about);
+        });
+
         // Setup click listeners
         binding.editProfileButton.setOnClickListener(v -> openEditProfile());
         binding.logoutButton.setOnClickListener(v -> logout());
@@ -52,18 +65,23 @@ public class ProfileFragment extends Fragment {
     private void loadUserProfile() {
         binding.loadingIndicator.setVisibility(View.VISIBLE);
 
+        if (binding != null) {
+            binding.loadingIndicator.setVisibility(View.VISIBLE);
+        }
+
         ApiService apiService = ApiClient.getClient().create(ApiService.class);
         Call<UserResponse> call = apiService.getUser();
 
         call.enqueue(new Callback<UserResponse>() {
             @Override
             public void onResponse(Call<UserResponse> call, Response<UserResponse> response) {
+                if (!isAdded() || binding == null) return;
+
                 binding.loadingIndicator.setVisibility(View.GONE);
 
                 if (response.isSuccessful() && response.body() != null) {
                     UserResponse userResponse = response.body();
                     if (userResponse.getStatus() == 1 && !userResponse.getUsers().isEmpty()) {
-                        // Get current user data
                         User currentUser = null;
                         String currentUserEmail = sessionManager.getUserData().getUser().getEmail();
 
@@ -81,11 +99,15 @@ public class ProfileFragment extends Fragment {
                 }
             }
 
+
             @Override
             public void onFailure(Call<UserResponse> call, Throwable t) {
+                if (!isAdded() || binding == null) return;
+
                 binding.loadingIndicator.setVisibility(View.GONE);
                 Toasty.error(requireContext(), "Failed to load profile", Toasty.LENGTH_SHORT).show();
             }
+
         });
     }
 

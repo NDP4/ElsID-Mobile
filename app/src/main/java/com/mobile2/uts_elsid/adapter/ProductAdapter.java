@@ -11,6 +11,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.navigation.NavController;
 import androidx.navigation.NavOptions;
 import androidx.navigation.Navigation;
@@ -18,8 +19,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.mobile2.uts_elsid.R;
 import com.mobile2.uts_elsid.model.Product;
+import com.mobile2.uts_elsid.utils.WishlistManager;
+
 import java.text.NumberFormat;
 import java.util.List;
 import java.util.Locale;
@@ -29,7 +33,21 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHold
     private Context context;
     private List<Product> products;
     private OnProductClickListener listener;
+    private WishlistManager wishlistManager;
 
+    private boolean showUnavailableUI = false;
+    // Tambahkan method untuk product unavailable
+    public void setShowUnavailableUI(boolean show) {
+        this.showUnavailableUI = show;
+        notifyDataSetChanged();
+    }
+
+    // Constructor
+//    public ProductAdapter(Context context, List<Product> products, WishlistManager wishlistManager) {
+//        this.context = context;
+//        this.products = products;
+//        this.wishlistManager = wishlistManager;
+//    }
 
 
     public interface OnProductClickListener {
@@ -41,6 +59,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHold
     public ProductAdapter(Context context, List<Product> products) {
         this.context = context;
         this.products = products;
+        this.wishlistManager = new WishlistManager(context);
     }
 
     @NonNull
@@ -65,6 +84,30 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHold
                 listener.onProductClick(product);
             }
         });
+
+        // Nonaktifkan klik hanya untuk produk tidak tersedia
+        if (showUnavailableUI || !"available".equalsIgnoreCase(product.getStatus())) {
+            holder.itemView.setClickable(false); // <-- Tambahkan ini
+            holder.itemView.setAlpha(0.5f);
+            holder.soldOutLabel.setVisibility(View.VISIBLE);
+//            holder.addToCartButton.setEnabled(false);
+        } else {
+            holder.itemView.setClickable(true); // <-- Pastikan klik aktif
+            holder.itemView.setAlpha(1f);
+            holder.soldOutLabel.setVisibility(View.GONE);
+//            holder.addToCartButton.setEnabled(true);
+        }
+
+        // Tampilkan UI khusus untuk produk tidak tersedia
+        if (showUnavailableUI || !"available".equalsIgnoreCase(product.getStatus())) {
+            holder.itemView.setAlpha(0.5f);
+            holder.soldOutLabel.setVisibility(View.VISIBLE);
+//            holder.addToCartButton.setEnabled(false);
+        } else {
+            holder.itemView.setAlpha(1f);
+            holder.soldOutLabel.setVisibility(View.GONE);
+//            holder.addToCartButton.setEnabled(true);
+        }
 
         // Format price with currency
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
@@ -114,6 +157,26 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHold
 //                    .setLaunchSingleTop(true)
 //                    .build());
 //        });
+
+        boolean isInWishlist = wishlistManager.isInWishlist(product.getId());
+        updateWishlistButton(holder.wishlistButton, isInWishlist);
+
+        holder.wishlistButton.setOnClickListener(v -> {
+            if (isInWishlist) {
+                wishlistManager.removeFromWishlist(product.getId());
+                Toasty.success(context, "Removed from wishlist", Toasty.LENGTH_SHORT).show();
+            } else {
+                wishlistManager.addToWishlist(product.getId());
+                Toasty.success(context, "Added to wishlist", Toasty.LENGTH_SHORT).show();
+            }
+            updateWishlistButton(holder.wishlistButton, !isInWishlist);
+        });
+    }
+
+
+    private void updateWishlistButton(FloatingActionButton wishlistButton, boolean isInWishlist) {
+        wishlistButton.setImageResource(isInWishlist ? R.drawable.ic_heart_filled : R.drawable.ic_heart_outline);
+        wishlistButton.setColorFilter(isInWishlist ? ContextCompat.getColor(context, R.color.wishlist_icon_active) : ContextCompat.getColor(context, R.color.wishlist_icon_inactive));
     }
 
     @Override
@@ -130,6 +193,10 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHold
         ImageView productImage;
         TextView titleText, categoryText, priceText, originalPriceText, discountText;
         MaterialButton cartButton;
+        FloatingActionButton wishlistButton;
+        TextView soldOutLabel;
+//        MaterialButton addToCartButton;
+
 
         public ViewHolder(View view) {
             super(view);
@@ -140,6 +207,9 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHold
             originalPriceText = view.findViewById(R.id.originalPriceText);
             discountText = view.findViewById(R.id.discountText);
             cartButton = view.findViewById(R.id.cartButton);
+            wishlistButton = view.findViewById(R.id.wishlistButton);
+            soldOutLabel = view.findViewById(R.id.soldOutLabel);
+//            addToCartButton = view.findViewById(R.id.addToCartButton);
         }
     }
 }

@@ -1,36 +1,51 @@
 package com.mobile2.uts_elsid.ui.home;
 
+import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.graphics.Paint;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.core.view.WindowCompat;
 import androidx.navigation.NavController;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.bumptech.glide.Glide;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.tabs.TabLayoutMediator;
 import com.mobile2.uts_elsid.R;
 import com.mobile2.uts_elsid.adapter.ImageSliderAdapter;
+import com.mobile2.uts_elsid.adapter.ProductAdapter;
 import com.mobile2.uts_elsid.api.ApiClient;
 import com.mobile2.uts_elsid.api.ApiService;
 import com.mobile2.uts_elsid.api.ProductDetailResponse;
+import com.mobile2.uts_elsid.api.ProductResponse;
 import com.mobile2.uts_elsid.databinding.FragmentProductDetailBinding;
 import com.mobile2.uts_elsid.model.Cart;
 import com.mobile2.uts_elsid.model.Product;
 import com.mobile2.uts_elsid.model.ProductVariant;
 import com.mobile2.uts_elsid.utils.CartManager;
+import com.mobile2.uts_elsid.utils.NotificationHelper;
 
 import java.io.IOException;
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -50,6 +65,18 @@ public class ProductDetailFragment extends Fragment {
     private int productId;
     private ProductVariant selectedVariant;
 
+//    @Override
+    public void onCreated(View view, Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        // Set the status bar color to transparent
+        WindowCompat.setDecorFitsSystemWindows(requireActivity().getWindow(), false);
+
+        // Set the status bar color to transparent
+        requireActivity().getWindow().setStatusBarColor(getResources().getColor(android.R.color.transparent));
+
+        binding = FragmentProductDetailBinding.bind(view);
+    }
     private void setupVariants(List<ProductVariant> variants) {
         if (variants == null || variants.isEmpty()) {
             binding.variantsLabel.setVisibility(View.GONE);
@@ -62,8 +89,9 @@ public class ProductDetailFragment extends Fragment {
         binding.variantsGroup.setVisibility(View.VISIBLE);
         binding.variantsGroup.removeAllViews();
 
-        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
+//        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
 
+        NumberFormat formatter = getCurrencyFormatter();
         for (ProductVariant variant : variants) {
             RadioButton radioButton = new RadioButton(requireContext());
             double variantFinalPrice = variant.getPrice() * (1 - variant.getDiscount()/100.0);
@@ -87,7 +115,8 @@ public class ProductDetailFragment extends Fragment {
     private void updateFinalPrice() {
         if (binding == null || product == null) return;
 
-        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
+//        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
+        NumberFormat formatter = getCurrencyFormatter();
         double priceToUse;
         double discountToUse;
 
@@ -207,6 +236,21 @@ public class ProductDetailFragment extends Fragment {
         binding = FragmentProductDetailBinding.inflate(inflater, container, false);
         cartManager = new CartManager(requireContext());
 
+        TextView descriptionText = binding.descriptionText;
+        TextView seeMoreText = binding.seeMoreButton;
+        final boolean[] isExpanded = {false};
+
+        seeMoreText.setOnClickListener(v -> {
+            if (isExpanded[0]) {
+                descriptionText.setMaxLines(3);
+                seeMoreText.setText("See More");
+            } else {
+                descriptionText.setMaxLines(Integer.MAX_VALUE);
+                seeMoreText.setText("See Less");
+            }
+            isExpanded[0] = !isExpanded[0];
+        });
+
         // Get product ID from arguments
         if (getArguments() != null) {
             productId = getArguments().getInt("product_id", -1);
@@ -219,6 +263,8 @@ public class ProductDetailFragment extends Fragment {
         binding.addToCartButton.setOnClickListener(v -> {
             addToCart();
         });
+
+        setupRecommendations();
 
         return binding.getRoot();
     }
@@ -318,7 +364,8 @@ public class ProductDetailFragment extends Fragment {
             updateFinalPrice();
 
             // Format currency
-            NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
+//            NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
+            NumberFormat formatter = getCurrencyFormatter();
 
             // Handle price and discount
             double finalPrice = product.getPrice() * (1 - product.getDiscount()/100.0);
@@ -401,7 +448,8 @@ public class ProductDetailFragment extends Fragment {
     }
 
     private void updatePriceDisplay(double price, double discount) {
-        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
+//        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
+        NumberFormat formatter = getCurrencyFormatter();
 
         // Calculate final price
         double finalPrice = price * (1 - discount/100.0);
@@ -433,6 +481,8 @@ public class ProductDetailFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        WindowCompat.setDecorFitsSystemWindows(requireActivity().getWindow(), true);
+        requireActivity().getWindow().setStatusBarColor(ContextCompat.getColor(requireContext(), R.color.primary_dark));
         binding = null;
     }
 
@@ -515,7 +565,114 @@ public class ProductDetailFragment extends Fragment {
         Toasty.success(requireContext(),
                 "Added " + product.getTitle() + " to cart",
                 Toast.LENGTH_SHORT).show();
+
+        // Show notification
+        // Request notification permission for Android 13+ (API 33+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(requireActivity(),
+                        new String[]{android.Manifest.permission.POST_NOTIFICATIONS},
+                        1);
+            }
+        }
+        String productName = product.getTitle();
+        String notificationTittle = "Added to Cart";
+        String notificationMessage = productName + " has been added to your cart";
+
+        NotificationHelper notificationHelper = new NotificationHelper(requireContext());
+        notificationHelper.showCartNotification(notificationTittle, notificationMessage);
     }
 
+    private NumberFormat getCurrencyFormatter() {
+//        return NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
+        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("id", "ID"));
+        formatter.setMinimumFractionDigits(0);
+        return formatter;
+    }
+
+    // logika untuk enable dan disable button
+    private void updateAddToCartButton(int stock) {
+        MaterialButton addToCartButton = binding.addToCartButton;
+
+        if (stock > 0) {
+            addToCartButton.setEnabled(true);
+            addToCartButton.setText("Add to Cart");
+            addToCartButton.setBackgroundTintList(ColorStateList.valueOf(
+                    ContextCompat.getColor(requireContext(), R.color.primary)));
+        } else {
+            addToCartButton.setEnabled(false);
+            addToCartButton.setText("Out of Stock");
+            addToCartButton.setBackgroundTintList(ColorStateList.valueOf(
+                    ContextCompat.getColor(requireContext(), R.color.text_secondary)));
+        }
+    }
+
+    private void setupRecommendations() {
+        // Sembunyikan dulu sampai data siap
+        binding.recommendationsSection.setVisibility(View.GONE);
+
+        // Gunakan LinearLayoutManager horizontal
+        LinearLayoutManager layoutManager = new LinearLayoutManager(
+                requireContext(),
+                LinearLayoutManager.HORIZONTAL,
+                false
+        );
+        binding.recommendationsRecyclerView.setLayoutManager(layoutManager);
+
+        ProductAdapter adapter = new ProductAdapter(requireContext(), new ArrayList<>());
+        adapter.setOnProductClickListener(product -> {
+            // Navigasi ke ProductDetailFragment
+            Bundle bundle = new Bundle();
+            bundle.putInt("product_id", product.getId());
+
+            NavController navController = Navigation.findNavController(requireActivity(), R.id.navigation_product_detail);
+            navController.navigate(R.id.navigation_product_detail, bundle);
+        });
+
+        binding.recommendationsRecyclerView.setAdapter(adapter);
+
+        ApiService apiService = ApiClient.getClient().create(ApiService.class);
+        apiService.getProducts().enqueue(new Callback<ProductResponse>() {
+            @Override
+            public void onResponse(Call<ProductResponse> call, Response<ProductResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<Product> allProducts = response.body().getProducts();
+
+                    // Filter dan urutkan produk
+                    List<Product> recommendations = new ArrayList<>();
+                    for (Product product : allProducts) {
+                        if (product.getDiscount() > 0) {
+                            recommendations.add(product);
+                        }
+                    }
+
+                    // Urutkan berdasarkan diskon tertinggi
+                    Collections.sort(recommendations, (p1, p2) ->
+                            Double.compare(p2.getDiscount(), p1.getDiscount()));
+
+                    // Ambil maksimal 3 item
+                    if (recommendations.size() > 3) {
+                        recommendations = recommendations.subList(0, 3);
+                    }
+
+                    if (!recommendations.isEmpty()) {
+                        // Tampilkan section rekomendasi
+                        binding.recommendationsSection.setVisibility(View.VISIBLE);
+
+                        // Set adapter
+                        ProductAdapter adapter = new ProductAdapter(requireContext(), recommendations);
+                        binding.recommendationsRecyclerView.setAdapter(adapter);
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ProductResponse> call, Throwable t) {
+                Log.e("Recommendations", "Error loading recommendations: " + t.getMessage());
+                binding.recommendationsSection.setVisibility(View.GONE);
+            }
+        });
+    }
 
 }

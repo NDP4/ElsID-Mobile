@@ -34,4 +34,6 @@
     <color name="warning">#FFC107</color>
     <color name="info">#2196F3</color>
 
+    <color name="wishlist_icon_inactive">#FF8300</color>
+    <color name="wishlist_icon_active">#FF4081</color>
 </resources>

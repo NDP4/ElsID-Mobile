@@ -38,4 +38,14 @@
         android:name="com.mobile2.uts_elsid.ui.profile.EditProfileFragment"
         android:label="Edit Profile"
         tools:layout="@layout/fragment_edit_profile" />
+    <fragment
+        android:id="@+id/navigation_wishlist"
+        android:name="com.mobile2.uts_elsid.ui.profile.WishlistFragment"
+        android:label="Wishlist"
+        tools:layout="@layout/fragment_wishlist" />
+    <fragment
+        android:id="@+id/navigation_about"
+        android:name="com.mobile2.uts_elsid.ui.profile.AboutFragment"
+        android:label="About"
+        tools:layout="@layout/fragment_about" />
 </navigation>
