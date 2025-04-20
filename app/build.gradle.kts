@@ -83,5 +83,7 @@ dependencies {
 
     implementation("com.squareup.okhttp3:logging-interceptor:4.9.0")
 
+    implementation("com.midtrans:uikit:2.0.0-SANDBOX")
+
 //    implementation("androidx.loader:loader:2.1.0")
 }
